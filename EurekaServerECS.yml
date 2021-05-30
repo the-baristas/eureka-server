@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ECS Base Template
+Parameters:
+  ApplicationEnvironment:
+    Type: String
+    Default: dev
+  ApplicationName:
+    Type: String
+    Default: eureka-server
+  ECRRepositoryUri:
+    Type: String
+    Default: '{{resolve:secretsmanager:repositories:SecretString:eureka-server-ecr}}'
+    Description: Full Uri for consumer docker image to run in container
+Resources:
+  # Role for ECS container
+  ContainerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ApplicationName}-${ApplicationEnvironment}-ContainerExecutionRole'
+      Description: IAM Role for ECS container
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ecs-tasks.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Tags:
+          - Key: ApplicationName
+            Value: !Ref ApplicationName
+          - Key: ApplicationEnvironment
+            Value: !Ref ApplicationEnvironment
+  # Fargate ECS Service
+  MicroService:
+    Type: AWS::ECS::Service
+   # DependsOn: ApiListenerRule
+    Properties:
+      ServiceName: !Join ['-', [!Ref ApplicationName, !Ref ApplicationEnvironment]]
+      Cluster: '{{resolve:secretsmanager:ecs-cluster-name:SecretString:ecs-cluster-name}}'
+      TaskDefinition: !Ref TaskDefinition
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+      DesiredCount: 1
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets:
+            - '{{resolve:secretsmanager:public-subnet:SecretString:public-subnet}}'
+          SecurityGroups:
+            - '{{resolve:secretsmanager:vpc-security-group:SecretString:vpc-security-group}}'
+  # Fargate Task Definition
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${ApplicationName}-${ApplicationEnvironment}
+      RequiresCompatibilities:
+        - FARGATE
+      Memory: '2048'
+      Cpu: '256'
+      NetworkMode: awsvpc
+      ExecutionRoleArn: !Sub '{{resolve:secretsmanager:ecs-task-execution-role:SecretString:ecs-task-execution-role}}'
+      TaskRoleArn: !Ref ContainerExecutionRole
+      ContainerDefinitions:
+        - Name: !Ref ApplicationName
+          Image: !Ref ECRRepositoryUri # This gets passed as param from ecs.json generated in buildspec
+          PortMappings:
+            - ContainerPort: 8761
+          Environment:
+            - Name: APPLICATION_NAME
+              Value: !Sub ${ApplicationName}
+            - Name: APPLICATION_ENVIRONMENT
+              Value: !Ref ApplicationEnvironment
+            - Name: PORT
+              Value: '8761'
+          Essential: true
+          Memory: 1024
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Sub /ecs/Baristas/${ApplicationName}/${ApplicationEnvironment}
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+              awslogs-create-group: 'true'
