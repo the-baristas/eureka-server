@@ -33,7 +33,7 @@ pipeline {
               steps {
                 
                 echo 'Deploying cloudformation..'
-                sh "aws cloudformation deploy --stack-name UserService --template-file ./userServiceECS.yml --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --region us-east-2"
+                sh "aws cloudformation deploy --stack-name EurekaServer --template-file ./eurekaServerECS.yml --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --region us-east-2"
               }
             }
     }
