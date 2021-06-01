@@ -33,7 +33,7 @@ pipeline {
             stage('Deploy') {
               steps {
                 echo 'Deploying cloudformation..'
-                sh "aws cloudformation deploy --stack-name ${SERVICE_NAME}-stack --template-file ./orchestratorECS.yml  --parameter-overrides ApplicationName=${SERVICE_NAME} ECRepositoryUri=${ECR_REGISTRY_URI}/${SERVICE_NAME}:${COMMIT_HASH} --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --region us-east-2"
+                sh "aws cloudformation deploy --stack-name ${SERVICE_NAME}-stack --template-file ./eurekaServerECS.yml  --parameter-overrides ApplicationName=${SERVICE_NAME} ECRepositoryUri=${ECR_REGISTRY_URI}/${SERVICE_NAME}:${COMMIT_HASH} --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM --region us-east-2"
               }
             }
     }
